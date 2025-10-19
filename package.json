@@ -1,0 +1,56 @@
+{
+  "name": "kylfil",
+  "version": "1.0.0",
+  "description": "A tiny database-agnostic Event Store",
+  "author": "Polad Mirzayev <polad@web3studio.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/polad/kylfil.git"
+  },
+  "type": "commonjs",
+  "packageManager": "yarn@4.8.0",
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@eslint/js": "^9.38.0",
+    "@semantic-release/git": "^10.0.1",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "jest-junit": "^16.0.0",
+    "lint-staged": "^16.2.4",
+    "pinst": "^3.0.0",
+    "prettier": "3.6.2",
+    "semantic-release": "^25.0.0"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint",
+      "prettier --write --ignore-unknown"
+    ],
+    "!(*.js)": "prettier --write --ignore-unknown"
+  },
+  "scripts": {
+    "test": "jest --verbose --coverage",
+    "prepare": "husky"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./mysql": "./src/mysql/index.js"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "src/index.js",
+    "src/lib/utils.js",
+    "src/mysql/index.js"
+  ],
+  "keywords": [
+    "eventstore",
+    "event sourcing"
+  ]
+}

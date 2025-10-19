@@ -1,0 +1,59 @@
+[
+  {
+    "id": "3d122d1a-5adb-4df8-a024-43af7ece670d",
+    "type": "AirTicketSold",
+    "version": 0,
+    "data": {
+      "id": "969e16bf-e016-4687-a68e-ea06abde16b3",
+      "airline": "AC",
+      "tkt": "01429356571735",
+      "pax": "MRS HAZEL NUTT",
+      "saleDate": "2025-04-10",
+      "price": "630.00",
+      "tax": "81.90"
+    }
+  },
+  {
+    "id": "f268eae4-c2d5-4abe-a4ec-5d0ffc3d1183",
+    "type": "AirTicketSold",
+    "version": 1,
+    "data": {
+      "id": "969e16bf-e016-4687-a68e-ea06abde16b3",
+      "airline": "AC",
+      "tkt": "01429356571735",
+      "pax": "MRS HAZEL NUTT",
+      "saleDate": "2025-04-10",
+      "price": "750.00",
+      "tax": "97.50"
+    }
+  },
+  {
+    "id": "e17dd6a5-fd42-4180-ae6c-16c0c6373238",
+    "type": "AirTicketExchanged",
+    "version": 0,
+    "data": {
+      "id": "286d1706-152c-44e0-bfac-e61379842b73",
+      "airline": "AC",
+      "tkt": "0142935685019",
+      "prevTkt": "0142935607173",
+      "pax": "MRS HAZEL NUTT",
+      "saleDate": "2025-04-12",
+      "price": "110.00",
+      "tax": "14.30"
+    }
+  },
+  {
+    "id": "19fa52be-42f9-4143-ab28-aea115ddfc9c",
+    "type": "AirTicketRefunded",
+    "version": 0,
+    "data": {
+      "id": "876b33ad-ca8a-4820-87f2-d29dac769aa1",
+      "airline": "AC",
+      "tkt": "0142935685019",
+      "pax": "MRS HAZEL NUTT",
+      "refundDate": "2025-06-08",
+      "penalty": "250.00",
+      "refund": "721.80"
+    }
+  }
+]

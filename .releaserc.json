@@ -1,0 +1,33 @@
+{
+  "branches": "main",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "docs", "release": "patch" },
+          { "type": "refactor", "release": "patch" },
+          { "type": "style", "release": "patch" }
+        ],
+        "parserOpts": {
+          "noteKeywords": [
+            "BREAKING CHANGE",
+            "BREAKING-CHANGE",
+            "BREAKING CHANGES",
+            "BREAKING-CHANGES"
+          ]
+        }
+      }
+    ],
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/npm",
+    "@semantic-release/git",
+    [
+      "@semantic-release/github",
+      {
+        "assets": [{ "path": "dist/bundle.js", "label": "JS Distribution" }]
+      }
+    ]
+  ]
+}
