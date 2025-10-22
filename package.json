@@ -1,6 +1,6 @@
 {
   "name": "kylfil",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A tiny database-agnostic Event Store",
   "author": "Polad Mirzayev <polad@web3studio.io>",
   "license": "MIT",
