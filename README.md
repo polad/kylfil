@@ -28,14 +28,10 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
 ## How to use:
 
 ```js
-const mysql = require("mysql2/promise")
-const pool = mysql.createPool({ /* DB Params */ })
-
 const { append, createEvent, read, stream } = require("kylfil");
-const MySqlProvider = require("kylfil/mysql");
-const db = MySqlProvider(pool);
+const sqlite = require("kylfil/sqlite")(dbConnection);
 
-const myStream = stream ("be2ed21cad4b412f69c558510112262f") (db);
+const myStream = stream ("be2ed21cad4b412f69c558510112262f") (sqlite);
 
 const sale = {
   airline: "Air Canada",

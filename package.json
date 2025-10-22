@@ -39,14 +39,16 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./mysql": "./src/mysql/index.js"
+    "./mysql": "./src/mysql/index.js",
+    "./sqlite": "./src/sqlite/index.js"
   },
   "files": [
     "LICENSE",
     "README.md",
     "src/index.js",
     "src/lib/utils.js",
-    "src/mysql/index.js"
+    "src/mysql/index.js",
+    "src/sqlite/index.js"
   ],
   "keywords": [
     "eventstore",
