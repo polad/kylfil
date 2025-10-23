@@ -46,6 +46,7 @@
     "LICENSE",
     "README.md",
     "src/index.js",
+    "src/lib/sql.js",
     "src/lib/utils.js",
     "src/mysql/index.js",
     "src/sqlite/index.js"
