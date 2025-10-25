@@ -1,82 +1,18 @@
 "use strict";
 
-const { StoredEvent, StoreProvider } = require("../");
-const { eventsNamedParams, ReadSqlParts } = require("../lib/sql");
-const { Binary, BinaryUuid, toUuid } = require("../lib/utils");
+const SqlProvider = require("../lib/SqlProvider");
 
-/* dbRecordToStoredEvent :: DbRecord -> StoredEvent */
-const dbRecordToStoredEvent = (dbRecord) =>
-  StoredEvent({
-    seq: dbRecord.seq,
-    id: toUuid(Buffer.from(dbRecord.id || "").toString("hex")),
-    streamId: Buffer.from(dbRecord.stream_id || "").toString("hex"),
-    version: dbRecord.version,
-    type: dbRecord.type,
-    data: dbRecord.data,
-  });
+/* appendResponse :: DbQueryResponse -> Object */
+const appendResponse = (response) => ({
+  insertId: response?.[0]?.insertId,
+  affectedRows: response?.[0]?.affectedRows,
+});
 
-/* dbResponseToStoredEvents :: DbQueryResponse -> Array StoredEvent */
-const dbResponseToStoredEvents = (response) =>
-  (response?.[0] || []).map(dbRecordToStoredEvent);
-
-/* readEventsById :: DbConnection -> StreamParams -> Array String -> Promise Array StoredEvent */
-const readEventsById = (dbConnection) => (streamParams) => (eventIds) =>
-  dbConnection
-    .query(
-      `SELECT * FROM ${streamParams.storageName} \
-         WHERE id IN (:eventIds) ORDER BY seq`,
-      { eventIds: eventIds.map(BinaryUuid) },
-    )
-    .then(dbResponseToStoredEvents);
-
-/* ifAppendOk :: Integer -> DbQueryResponse -> Boolean */
-const ifAppendOk = (expectedChanges) => (response) =>
-  response?.[0]?.insertId && response?.[0]?.affectedRows === expectedChanges;
-
-/* append :: dbConnection -> StreamParams -> Array Event -> Promise Array StoredEvent */
-const append = (dbConnection) => (streamParams) => (events) =>
-  Array.isArray(events) && events.length
-    ? ((eventsParams) =>
-        dbConnection
-          .query(
-            `INSERT INTO ${streamParams?.storageName} (id, stream_id, version, type, data) \
-             SELECT * FROM (${eventsParams.sql}) __tmp_values_table \
-             WHERE ( \
-               SELECT COALESCE(max(version)+1, 0) FROM ${streamParams?.storageName} \
-               WHERE stream_id=:streamId)>=:version`,
-            {
-              ...Object.assign(...eventsParams.values),
-              streamId: Binary(streamParams.streamId),
-              version: events[0].version,
-            },
-          )
-          .then((response) =>
-            ifAppendOk(events.length)(response)
-              ? readEventsById(dbConnection)(streamParams)(
-                  events.map(({ id }) => id),
-                )
-              : [],
-          ))(eventsNamedParams(events))
-    : Promise.resolve([]);
-
-/* read :: DbConnection -> StreamParams -> ReadParams -> Promise Array StoredEvent */
-const read = (dbConnection) => (streamParams) => (readParams) =>
-  (({ storageName, directionSql, andVersionSql, limitByMaxCountSql }) =>
-    dbConnection.query(
-      `SELECT * FROM ${storageName} \
-         WHERE stream_id=:streamId ${andVersionSql} \
-         ORDER BY seq ${directionSql} \
-         ${limitByMaxCountSql}`,
-      {
-        streamId: Binary(streamParams?.streamId),
-        fromVersion: readParams?.fromVersion,
-        maxCount: readParams?.maxCount,
-      },
-    ))(ReadSqlParts(streamParams)(readParams)).then(dbResponseToStoredEvents);
+/* readResponse :: DbQueryResponse -> Array DbRecord */
+const readResponse = (response) => response?.[0] || [];
 
 /* MySqlProvider :: DbConnection -> StoreProvider */
-module.exports = (dbConnection) =>
-  StoreProvider({
-    append: append(dbConnection),
-    read: read(dbConnection),
-  });
+module.exports = SqlProvider({
+  appendResponse,
+  readResponse,
+});
