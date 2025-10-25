@@ -46,9 +46,10 @@
     "LICENSE",
     "README.md",
     "src/index.js",
-    "src/lib/sql.js",
+    "src/lib/SqlProvider.js",
     "src/lib/utils.js",
     "src/mysql/index.js",
+    "src/postgres/index.js",
     "src/sqlite/index.js"
   ],
   "keywords": [

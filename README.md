@@ -7,7 +7,7 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
 - Simple Functional API: for great composition and expressive code.
 - Atomic Guarantees: append multiple events in a single-transaction.
 - Storage Agnostic: supports virtually any Database or KV Store via a simple `StoreProvider` interface requiring only two functions: `append()` and `read()`.
-- Reference Implementations for SQLite & MySQL: provides out-of-the-box support for some popular databases also serves as example for integrating with other storage engines.
+- Reference Implementations: get started right away with Postgres, SQLite, MySQL (more coming soon)&mdash;or use them as a blueprint for integrating with your favourite store.
 - Lazy DB Connection & Deferred Query Execution: improves performance by avoiding premature resource allocation.
 - Flexible Querying: read events in any direction or from a specific version.
 - Immutable Operations: all functions return new objects without modifying original objects.
@@ -29,9 +29,9 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
 
 ```js
 const { append, createEvent, read, stream } = require("kylfil");
-const sqlite = require("kylfil/sqlite")(dbConnection);
+const postgres = require("kylfil/postgres")(dbConnection);
 
-const myStream = stream ("be2ed21cad4b412f69c558510112262f") (sqlite);
+const myStream = stream ("be2ed21cad4b412f69c558510112262f") (postgres);
 
 const sale = {
   airline: "Air Canada",
@@ -202,7 +202,7 @@ Use this function to append events to a given stream.
 
 > **&#128712; NOTE:** This function will store the events using the ID of the **stream** regardless of the `streamId` of the events. The original event objects won't be changed because the library performs all operations immutably.
 
-Optimistic Concurrency Control will not allow the same event to be appended to a stream more than once. If two events have the same event `id` or the same compound key of `(streamId + version)` it should return an `Error("Duplicate entry")`. Because SQLite & MySQL reference implementations provided with this library use "multi-value" inserts, they act as a single transaction commit. If one of the events fails for any reason none of the events will be stored. Following example shows the difference:
+Optimistic Concurrency Control will not allow the same event to be appended to a stream more than once. If two events have the same event `id` or the same compound key of `(streamId + version)` it should return an `Error("Duplicate entry")`. Because reference implementations for storage engines provided with this library use "multi-value" inserts, this process is atomic and acts as a single transaction commit. If any of the events fails to append, none will be stored. Following example shows the difference:
 ```js
 // no events will be stored due to Duplicate Entry error
 await append ([ sameEvent, sameEvent ]) (myStream)
