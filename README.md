@@ -24,7 +24,7 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
 - [Event Sourcing helpers](#event-sourcing-helpers)
   - [aggregate ()](#aggregate-aggregateparams-stream)
   - [evolveWith ()](#evolvewith-evolvers-state-event)
-  - [Snapshots](#snapshots)
+- [Snapshots](#snapshots)
 - [StoreProvider Interface](#storeprovider-interface)
   - [append ( )](#append-streamparams-events)
   - [read ( )](#read-streamparams-readparams)
@@ -380,32 +380,29 @@ const [version, order] = await aggregate({
 ### evolveWith (evolvers) (state) (event)
 `evolveWith :: StrMap (State -> Event -> State) -> State -> Event -> State`
 
-This is a convenience function to create an `evolve` function and can be passed into an aggregate for handling events.
-
+This is a convenience function that helps to quickly setup an `evolve` function in an easy and declarative way. It allows mapping specific event types to their respective handlers using the `evolvers` argument. The resulting `evolve` function can be passed into an aggregate for handling events.
 
 ### Arguments:
-- **evolvers** is an object where properties match event types and values are instances of evolve function with a signature `State -> Event -> State` to handle a particular event type.
+- **evolvers** is an object that maps event types to their handlers with a signature `State -> Event -> State`.
 - **state** is a current state of the aggregate
 - **event** is an event to be processed
 
 ### Returns:
-The next state produced after applying the event to the current state.
+A new `evolve` function with the following signature `State -> Evolve -> State` which produces next state by applying the event to the current state.
 
 #### Examples:
 1\. Create evolve function for order event handling:
 ```js
 // create evolve function
 const evolveOrder = evolveWith({
-  OrderCreated: (order) => (event) => ({
-    ...event.data,
-  }),
+  OrderCreated: () => (event) => Order(event.data),
   OrderItemAdded: (order) => (event) => ({
     ...order,
-    items: [...(order.items || []), event.data],
+    items: [...order.items, event.data],
   }),
   OrderItemRemoved: (order) => (event) => ({
     ...order,
-    items: (order.items || []).filter(({ id }) => id !== event.data.id),
+    items: order.items.filter(({ id }) => id !== event.data.id),
   }),
 });
 
