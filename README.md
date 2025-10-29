@@ -21,6 +21,10 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
   - [append ( )](#append--events---stream-)
   - [read ( )](#read--readparams---stream-)
 - [Concurrency with append() and read()](#concurrency-with-append-and-read)
+- [Event Sourcing helpers](#event-sourcing-helpers)
+  - [aggregate ()](#aggregate-aggregateparams-stream)
+  - [evolveWith ()](#evolvewith-evolvers-state-event)
+  - [Snapshots](#snapshots)
 - [StoreProvider Interface](#storeprovider-interface)
   - [append ( )](#append-streamparams-events)
   - [read ( )](#read-streamparams-readparams)
@@ -242,7 +246,7 @@ const [eventsInMyStream, eventsInYourStream] = await Promise.all(
 
 Use this function to read events from a stream in any direction and/or from a specific version. You can also set the max number of events to return.
 
-#### Arguments
+#### Arguments:
 
 - **readParams** is of type `ReadParams` with the following properties:
 
@@ -316,6 +320,133 @@ const [ myEvents, andYourEvents ] = await Promise.all(
 - If you're using a `StoreProvider` implementation that supports a connection `Pool` make sure you have set a conection limit.
 - When the connection pool limit is reached, concurrent calls to `append()` or `read()` are processed sequentially.
 
+## Event Sourcing helpers
+
+### aggregate (aggregateParams) (stream)
+`aggregate :: AggregateParams -> EventStream -> Promise (Integer State)`
+
+Use this function to get the current state of the entity represented by the stream. By default it reads all events in the stream to rebuild the entity state. However, if you provide a `version` in `AggregateParams` it will only read events that have occured since that version _(i.e. version + 1)_. You can pass an `evolve` function to `AggregateParams` which reduces a list of events into a resulting entity state. By default it will use a `NoFold` evolve which appends each event to the state where the state is a list of events.
+
+### Arguments:
+- **aggregateParams** is of type `AggregateParams` with the following properties:
+
+  | Name | Type | Default | Description |
+  | ---- |:----:|:-------:| ----------- |
+  | `evolve` | State -> Event -> State | NoFold | Reducer function to build the stream state |
+  | `initialState` | Any | [ ] | Initial state of the entity |
+  | `version` | Integer >= `0` | N/A | Current version of the entity |
+
+- **stream** is an `EventStream` to read events from.
+
+### Returns:
+A `Promise` containing a `Pair(Integer State)` _(i.e. array)_ where the 1st element is an entity version and 2nd is an entity state.
+
+#### Examples:
+1\. Aggregate events to rebuild the state of an order:
+```js
+const evolve = order => event =>
+  event.type === "OrderItemAdded"
+    ? { ...order, items: [...order.items, event.data] }
+    : event.type === "OrderItemRemoved"
+      ? removeItemById(event.data.id)(order)
+      : order;
+
+const initialState = {
+  id: "my-order",
+  createdDate: "2025-04-01",
+  items: []
+}
+
+const [version, order] = await aggregate({
+  evolve,
+  initialState,
+  version: 0
+})(stream)
+
+// assuming events were:
+// 1) OrderItemAdded: "First Item"
+// 2) OrderItemAdded: "Second Item"
+// 3) OrderItemRemoved: "First Item"
+// version will be 3 and order will be:
+{
+  id: "my-order",
+  createdDate: "2025-04-01",
+  items: [
+    { id: "item-2-id", name: "Second Item" },
+  ]
+}
+```
+
+### evolveWith (evolvers) (state) (event)
+`evolveWith :: StrMap (State -> Event -> State) -> State -> Event -> State`
+
+This is a convenience function to create an `evolve` function and can be passed into an aggregate for handling events.
+
+
+### Arguments:
+- **evolvers** is an object where properties match event types and values are instances of evolve function with a signature `State -> Event -> State` to handle a particular event type.
+- **state** is a current state of the aggregate
+- **event** is an event to be processed
+
+### Returns:
+The next state produced after applying the event to the current state.
+
+#### Examples:
+1\. Create evolve function for order event handling:
+```js
+// create evolve function
+const evolveOrder = evolveWith({
+  OrderCreated: (order) => (event) => ({
+    ...event.data,
+  }),
+  OrderItemAdded: (order) => (event) => ({
+    ...order,
+    items: [...(order.items || []), event.data],
+  }),
+  OrderItemRemoved: (order) => (event) => ({
+    ...order,
+    items: (order.items || []).filter(({ id }) => id !== event.data.id),
+  }),
+});
+
+const order = { id: "my-order", items: [] }
+const addItemEvent = createEvent("OrderItemAdded")({
+  id: "some-item",
+  name: "Some Item"
+})
+
+const updatedOrder = evolveOrder(order)(addItemEvent);
+// updatedOrder will be:
+{
+  id: "my-order",
+  items: [
+    { id: "some-item", name: "Some Item" }
+  ]
+}
+
+// can be passed into aggregate:
+await aggregate({ evolve: evolveOrder, initialState: order })
+```
+
+## Snapshots
+The `aggregate` function can be used for **Snapshotting** as follows:
+- Load the last known entity state from your "Read View".
+- Pass it as the `initialState` along with the `version` in the `AggregateParams`.
+- `aggregate` will load all the events from the stream since that version, and replay them using the `evolve` function producing the updated snapshot of the entity.
+- Save the new snapshot along with its version back to your "Read View".
+
+Assuming the aggregate example above we can do the following:
+```js
+const snapshot = await findSnapshotById(orderId)
+const [version, order] = await aggregate({
+  evolve,
+  initialState: snapshot.doc,
+  version: snapshot.version
+})(stream)
+await saveSnapshot({ id: orderId, version, doc: order })
+```
+<sup>*</sup>Since the implementation of snapshot loading/saving is highly dependent on the user's choices and the storage engine used, these details have been omitted.
+
 ## StoreProvider Interface
 
 ### append (streamParams) (events)
@@ -339,5 +470,5 @@ This function retrieves events from the underlying storage engine. It's partiall
 - **streamParams** is of type `StreamParams` and supplied by the `stream()` function of the library.
 - **readParams** is of type `ReadParams` and provided by the `read()` function of the library.
 
-#### Returns
+#### Returns:
 A `Promise` containing an array of `StoredEvent` objects.
