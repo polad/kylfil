@@ -1,10 +1,10 @@
 "use strict";
 
-const { read } = require("../");
+const { read } = require("./");
 const { aggregate, evolveWith } = require("./eventSourcing");
-const { uncurry2 } = require("./utils");
+const { uncurry2 } = require("./lib/utils");
 
-jest.mock("../");
+jest.mock("./");
 
 const events = [
   {
@@ -41,7 +41,7 @@ const events = [
   },
 ];
 
-describe("lib/eventSourcing", () => {
+describe("kylfil/eventSourcing", () => {
   describe("aggregate()", () => {
     beforeEach(() => {
       read.mockReset();

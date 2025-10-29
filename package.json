@@ -39,12 +39,14 @@
   },
   "exports": {
     ".": "./src/index.js",
+    "./eventSourcing": "./src/eventSourcing.js",
     "./mysql": "./src/mysql/index.js",
     "./sqlite": "./src/sqlite/index.js"
   },
   "files": [
     "LICENSE",
     "README.md",
+    "src/eventSourcing.js",
     "src/index.js",
     "src/lib/SqlProvider.js",
     "src/lib/utils.js",

@@ -1,7 +1,7 @@
 "use strict";
 
-const { read } = require("../");
-const { pipe, promised } = require("./utils");
+const { read } = require("./");
+const { pipe, promised } = require("./lib/utils");
 
 /* noFold :: Array Event -> Event -> Array Event */
 const noFold = (state) => (event) => [...(state || []), event];
