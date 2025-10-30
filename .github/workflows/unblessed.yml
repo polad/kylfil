@@ -1,0 +1,39 @@
+name: Test Unblessed Branch
+
+on:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn test
+
+  lint-commit-message:
+    name: Lint Commit Message
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: Assert that branch has a single commit
+        run: |
+          COMMIT_COUNT=$(git cherry origin/main | wc -l)
+          test $COMMIT_COUNT -eq 1
+      - name: Lint lastest commit message
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s")
+          echo "$COMMIT_MESSAGE" | yarn commitlint
