@@ -323,7 +323,7 @@ const [ myEvents, andYourEvents ] = await Promise.all(
 ## Event Sourcing helpers
 
 ### aggregate (aggregateParams) (stream)
-`aggregate :: AggregateParams -> EventStream -> Promise (Integer State)`
+`aggregate :: AggregateParams -> EventStream -> Promise (Integer, State)`
 
 Use this function to get the current state of the entity represented by the stream. By default it reads all events in the stream to rebuild the entity state. However, if you provide a `version` in `AggregateParams` it will only read events that have occured since that version _(i.e. version + 1)_. You can pass an `evolve` function to `AggregateParams` which reduces a list of events into a resulting entity state. By default it will use a `NoFold` evolve which appends each event to the state where the state is a list of events.
 
@@ -339,7 +339,7 @@ Use this function to get the current state of the entity represented by the stre
 - **stream** is an `EventStream` to read events from.
 
 ### Returns:
-A `Promise` containing a `Pair(Integer State)` _(i.e. array)_ where the 1st element is an entity version and 2nd is an entity state.
+A `Promise` containing a Pair `(Integer, State)` _(i.e. array)_ where the 1st element is an entity version and 2nd is an entity state.
 
 #### Examples:
 1\. Aggregate events to rebuild the state of an order:
@@ -407,12 +407,12 @@ const evolveOrder = evolveWith({
 });
 
 const order = { id: "my-order", items: [] }
-const addItemEvent = createEvent("OrderItemAdded")({
+const itemAddedEvent = createEvent("OrderItemAdded")({
   id: "some-item",
   name: "Some Item"
 })
 
-const updatedOrder = evolveOrder(order)(addItemEvent);
+const updatedOrder = evolveOrder(order)(itemAddedEvent);
 // updatedOrder will be:
 {
   id: "my-order",
