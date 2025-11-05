@@ -8,11 +8,14 @@ const appendResponse = (response) => ({
   affectedRows: response?.[0]?.affectedRows,
 });
 
+const isOccError = (err) => err.errno === 1062;
+
 /* readResponse :: DbQueryResponse -> Array DbRecord */
 const readResponse = (response) => response?.[0] || [];
 
 /* MySqlProvider :: DbConnection -> StoreProvider */
 module.exports = SqlProvider({
   appendResponse,
+  isOccError,
   readResponse,
 });

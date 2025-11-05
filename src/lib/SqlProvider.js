@@ -1,11 +1,12 @@
 "use strict";
 
-const { ReadDirection, StoredEvent, StoreProvider } = require("../");
-const { Binary, BinaryUuid, pipe, toUuid } = require("./utils");
+const { OccError, ReadDirection, StoredEvent, StoreProvider } = require("../");
+const { Binary, BinaryUuid, pipe, promised, toUuid } = require("./utils");
 
 /* SqlProvider :: Object -> DbConnection -> StoreProvider */
 module.exports = ({
   appendResponse,
+  isOccError,
   parseStoredEventData,
   placeholderMapper,
   prepareAppendQuery,
@@ -32,9 +33,9 @@ module.exports = ({
     JSON.stringify(event.data),
   ];
 
-  /* RETURNING :: Boolean -> String */
-  const RETURNING = (supportsInsertReturning) =>
-    supportsInsertReturning ? "RETURNING *" : "";
+  const supportsInsertReturning = !appendResponse;
+
+  const RETURNING_SQL = supportsInsertReturning ? "RETURNING *" : "";
 
   /* defaultPrepareAppendQuery :: StreamParams -> Object -> Object */
   const defaultPrepareAppendQuery =
@@ -44,21 +45,21 @@ module.exports = ({
               SELECT * FROM (${sql}) __tmp_values_table \
               WHERE ( \
                 SELECT COALESCE(max(version)+1, 0) FROM ${streamParams?.storageName} \
-                WHERE stream_id=?)>=? ${RETURNING(!appendResponse)}`,
+                WHERE stream_id=?)>=? ${RETURNING_SQL}`,
       params: [...params, Binary(streamParams.streamId), params[2]],
     });
 
   /* VERSION_SQL :: ReadDirection -> Integer -> String */
   const VERSION_SQL = (direction) => (fromVersion) =>
     Number.isInteger(fromVersion) && fromVersion > 0
-      ? direction === ReadDirection.FORWARD
-        ? "AND version>=?"
-        : "AND version<=?"
+      ? direction === ReadDirection.BACKWARD
+        ? "AND version<=?"
+        : "AND version>=?"
       : "";
 
   /* DIRECTION_SQL :: ReadDirection -> String */
   const DIRECTION_SQL = (direction) =>
-    direction === ReadDirection.FORWARD ? "ASC" : "DESC";
+    direction === ReadDirection.BACKWARD ? "DESC" : "ASC";
 
   /* LIMIT_BY_MAXCOUNT_SQL :: Integer -> String */
   const LIMIT_BY_MAXCOUNT_SQL = (maxCount) =>
@@ -89,12 +90,12 @@ module.exports = ({
   /* defaultPlaceholderMapper :: Integer -> (Any, Integer) -> String */
   const defaultPlaceholderMapper = (position) => (value, index) => "?";
 
+  const toPlaceholders = placeholderMapper || defaultPlaceholderMapper;
+
   /* recordSql :: Integer -> Array Any -> String */
   const recordSql = (position) => (record) =>
     (!position ? "SELECT " : " UNION ALL SELECT ") +
-    record
-      .map((placeholderMapper || defaultPlaceholderMapper)(position))
-      .join(", ");
+    record.map(toPlaceholders(position)).join(", ");
 
   /* prepareEvents :: Array Event -> Object */
   const prepareEvents = (events) =>
@@ -117,8 +118,8 @@ module.exports = ({
       )
       .then(dbResponseToStoredEvents);
 
-  /* ifAppendOk :: Integer -> DbQueryResponse -> Boolean */
-  const ifAppendOk = (expectedChanges) =>
+  /* isAppendOk :: Integer -> DbQueryResponse -> Boolean */
+  const isAppendOk = (expectedChanges) =>
     pipe([
       appendResponse,
       ({ insertId, affectedRows }) =>
@@ -128,33 +129,61 @@ module.exports = ({
   /* eventIds :: Array Event -> Array String */
   const eventIds = (events) => events.map(({ id }) => id);
 
-  /* append :: dbConnection -> StreamParams -> Array Event -> Promise Array StoredEvent */
+  /* readStreamVersion :: DbConnection -> StreamParams -> Promise Integer */
+  const readStreamVersion = (dbConnection) => (streamParams) =>
+    ((streamIdPlaceholder) =>
+      dbConnection
+        .query(
+          `SELECT MAX(version) AS version \
+           FROM ${streamParams.storageName} \
+           WHERE stream_id=${streamIdPlaceholder}`,
+          [Binary(streamParams?.streamId)],
+        )
+        .then(
+          pipe([
+            readResponse || defaultReadResponse,
+            (res) => res?.[0]?.version,
+          ]),
+        ))(toPlaceholders(-1)("", 1));
+
+  /* hasItems :: a -> Boolean */
+  const hasItems = (a) => Array.isArray(a) && a.length;
+
+  /* append :: DbConnection -> StreamParams -> Array Event -> Promise Array StoredEvent */
   const append = (dbConnection) => (streamParams) => (events) =>
-    Array.isArray(events) && events.length
-      ? pipe([
+    !hasItems(events)
+      ? Promise.resolve([])
+      : pipe([
           prepareEvents,
           (prepareAppendQuery || defaultPrepareAppendQuery)(streamParams),
           ({ sql, params }) =>
             dbConnection
               .query(sql, params)
               .then((response) =>
-                appendResponse
-                  ? ifAppendOk(events.length)(response)
+                supportsInsertReturning
+                  ? dbResponseToStoredEvents(response)
+                  : isAppendOk(events.length)(response)
                     ? readEventsById(dbConnection)(streamParams)(
                         eventIds(events),
                       )
-                    : []
-                  : dbResponseToStoredEvents(response),
-              ),
-        ])(events)
-      : Promise.resolve([]);
+                    : [],
+              )
+              .catch(async (err) => {
+                throw isOccError && isOccError(err)
+                  ? await pipe([
+                      readStreamVersion(dbConnection),
+                      promised(OccError(err)),
+                    ])(streamParams)
+                  : err;
+              }),
+        ])(events);
 
   /* read :: DbConnection -> StreamParams -> ReadParams -> Promise Array StoredEvent */
   const read = (dbConnection) => (streamParams) => (readParams) =>
     pipe([
       (prepareReadQuery || defaultPrepareReadQuery)(streamParams),
-      ({ sql, params }) =>
-        dbConnection.query(sql, params).then(dbResponseToStoredEvents),
+      ({ sql, params }) => dbConnection.query(sql, params),
+      promised(dbResponseToStoredEvents),
     ])(readParams);
 
   return (dbConnection) =>

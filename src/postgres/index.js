@@ -9,6 +9,8 @@ const readResponse = (response) => response?.rows || [];
 
 const COLUMN_TYPES = ["uuid", "bytea", "int", "text", "jsonb"];
 
+const isOccError = (err) => err.code === "23505";
+
 /* placeholderMapper :: Integer -> (Any, Integer) -> String */
 const placeholderMapper = (position) => (value, index) =>
   `$${position + index + 1}::${COLUMN_TYPES[index]}`;
@@ -60,6 +62,7 @@ const prepareReadQuery = (streamParams) => (readParams) =>
 
 /* PostgresProvider :: DbConnection -> StoreProvider */
 module.exports = SqlProvider({
+  isOccError,
   placeholderMapper,
   prepareAppendQuery,
   prepareReadQuery,

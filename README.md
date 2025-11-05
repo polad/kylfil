@@ -20,6 +20,7 @@ A tiny database-agnostic Event Store&mdash;clever by design, minimal by choice.
   - [createEvent ( )](#createevent--eventparams---eventdata-)
   - [append ( )](#append--events---stream-)
   - [read ( )](#read--readparams---stream-)
+- [Optimistic Concurrency Control (OCC)](#optimistic-concurrency-control-occ)
 - [Concurrency with append() and read()](#concurrency-with-append-and-read)
 - [Event Sourcing helpers](#event-sourcing-helpers)
   - [aggregate ()](#aggregate-aggregateparams-stream)
@@ -206,17 +207,6 @@ Use this function to append events to a given stream.
 
 > **&#128712; NOTE:** This function will store the events using the ID of the **stream** regardless of the `streamId` of the events. The original event objects won't be changed because the library performs all operations immutably.
 
-Optimistic Concurrency Control will not allow the same event to be appended to a stream more than once. If two events have the same event `id` or the same compound key of `(streamId + version)` it should return an `Error("Duplicate entry")`. Because reference implementations for storage engines provided with this library use "multi-value" inserts, this process is atomic and acts as a single transaction commit. If any of the events fails to append, none will be stored. Following example shows the difference:
-```js
-// no events will be stored due to Duplicate Entry error
-await append ([ sameEvent, sameEvent ]) (myStream)
-
-// here the first append will succeed 
-await append (sameEvent) (myStream)
-// the second will fail due to Duplicate Entry error
-await append (sameEvent) (myStream)
-```
-
 #### Returns:
 A `Promise` containing an array of `StoredEvent` objects with the following properties.
   
@@ -228,6 +218,8 @@ A `Promise` containing an array of `StoredEvent` objects with the following prop
   | `streamId` | String | Stream ID |
   | `version` | Integer | Stream version |
   | `data` | Any | Event payload |
+
+Throws an `OccError` that includes the current `streamVersion` if it fails due to an OCC conflict.
 
 #### Examples:
 1\. Append two events to the stream:
@@ -312,6 +304,31 @@ const readLast5 = read ({
 const [ myEvents, andYourEvents ] = await Promise.all(
   [myStream, andYourStream].map(readLast5)
 )
+```
+
+### Optimistic Concurrency Control (OCC)
+
+Optimistic Concurrency Control prevents appending events with conflicting `id` or a composite key of `(streamId + version)`. A conflict throws an `OccError` that includes the stream's current `streamVersion`. Because reference implementations for storage engines provided with this library use "multi-value" inserts, the entire append process is an atomic transaction: if one event fails to append, none will be stored. Following example shows the difference:
+```js
+// no events will be stored due to Duplicate Entry error
+await append ([ sameEvent, sameEvent ]) (myStream)
+
+// here the first append will succeed 
+await append (sameEvent) (myStream)
+// the second will fail due to OccError
+await append (sameEvent) (myStream)
+```
+In the following simulation of a racing condition where different events have the same version `3` only one will succeed and the other will throw `OccError`:
+```js
+try {
+  await Promise.all([
+    eventVersion3,
+    anotherEventVersion3
+  ].map(event => append(event)(myStream)))
+} catch (err) {
+  console.error("Error:", err.name, "streamVersion:", err.streamVersion)
+  // will print "Error: OccError streamVersion: 3"
+}
 ```
 
 ## Concurrency with append() and read()

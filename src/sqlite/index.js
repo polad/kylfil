@@ -8,8 +8,10 @@ const asyncSqlite = (dbConnection) => ({
   query: async (sql, params) => dbConnection.prepare(sql).all(...params),
 });
 
+const isOccError = (err) => err.errcode === 2067;
+
 /* SqliteProvider :: DbConnection -> StoreProvider */
 module.exports = pipe([
   asyncSqlite,
-  SqlProvider({ parseStoredEventData: true }),
+  SqlProvider({ isOccError, parseStoredEventData: true }),
 ]);

@@ -8,6 +8,14 @@ const ReadDirection = {
   BACKWARD: Symbol("BACKWARD"),
 };
 
+/* OccError :: Error -> Integer -> OccError */
+const OccError = (err) => (streamVersion) =>
+  ((occErr) => {
+    occErr.name = "OccError";
+    occErr.streamVersion = streamVersion;
+    return occErr;
+  })(new Error("OccError", { cause: err }));
+
 /* StoredEvent :: Object -> StoredEvent */
 const StoredEvent = (props) => ({
   seq: Number.parseInt(props?.seq),
@@ -141,6 +149,7 @@ const stream = pipe([
 
 exports.append = append;
 exports.createEvent = createEvent;
+exports.OccError = OccError;
 exports.read = read;
 exports.ReadDirection = ReadDirection;
 exports.StoredEvent = StoredEvent;
