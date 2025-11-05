@@ -310,7 +310,7 @@ const [ myEvents, andYourEvents ] = await Promise.all(
 
 Optimistic Concurrency Control prevents appending events with conflicting `id` or a composite key of `(streamId + version)`. A conflict throws an `OccError` that includes the stream's current `streamVersion`. Because reference implementations for storage engines provided with this library use "multi-value" inserts, the entire append process is an atomic transaction: if one event fails to append, none will be stored. Following example shows the difference:
 ```js
-// no events will be stored due to Duplicate Entry error
+// no events will be stored due to OccError
 await append ([ sameEvent, sameEvent ]) (myStream)
 
 // here the first append will succeed 

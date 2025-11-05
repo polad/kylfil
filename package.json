@@ -56,6 +56,8 @@
   ],
   "keywords": [
     "eventstore",
-    "event sourcing"
+    "event-store",
+    "eventsourcing",
+    "event-sourcing"
   ]
 }
