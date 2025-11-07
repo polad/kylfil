@@ -48,7 +48,7 @@ const sale = {
 const newEvent = createEvent ("AirTicketSold") (sale);
   
 (async () => {
-  const storedEvents = await append (newEvent) (myStream);
+  const [ storedEvent ] = await append (newEvent) (myStream);
 
   const events = await read ({ maxCount: 5 }) (myStream);
 })()
@@ -228,7 +228,7 @@ const [storedEvent1, storedEvent2] = await append ([ event1, event2 ]) (myStream
 ```
 2\. Append same events to multiple streams concurrently:
 ```js
-const [eventsInMyStream, eventsInYourStream] = await Promise.all(
+const results = await Promise.allSettled(
   [myStream, andYourStream].map( append ([ event1, event2 ]) )
 )
 ```
@@ -301,7 +301,7 @@ const readLast5 = read ({
   maxCount: 5
 })
 
-const [ myEvents, andYourEvents ] = await Promise.all(
+const results = await Promise.allSettled(
   [myStream, andYourStream].map(readLast5)
 )
 ```
@@ -320,15 +320,24 @@ await append (sameEvent) (myStream)
 ```
 In the following simulation of a racing condition where different events have the same version `3` only one will succeed and the other will throw `OccError`:
 ```js
-try {
-  await Promise.all([
-    eventVersion3,
-    anotherEventVersion3
-  ].map(event => append(event)(myStream)))
-} catch (err) {
-  console.error("Error:", err.name, "streamVersion:", err.streamVersion)
-  // will print "Error: OccError streamVersion: 3"
-}
+cons results = await Promise.allSettled([
+  eventVersion3,
+  anotherEventVersion3
+].map(event => append(event)(myStream)))
+
+results
+  .map((res, index) => {
+    if (res.status === 'rejected') {
+      const err = res.reason
+      console.error(
+        "Failed appending event #", index+1,
+        "at streamVersion: ", err.streamVersion,
+        "due to:", err.name
+      )
+      // will print:
+      // "Failed appending event #X at streamVersion: 3 due to: OccError"
+    }
+  })
 ```
 
 ## Concurrency with append() and read()
